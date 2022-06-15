@@ -10,11 +10,17 @@ DigitalOut Track(p21); //Digital output bit used to drive track power via H-brid
 DigitalIn D21(p7);
 DigitalIn D22(p6);
 DigitalIn D20(p5);
-InterruptIn int0(p11), int1(p12); 
 TextLCD lcd_screen(p30, p29, p28, p27, p26, p25); 
 I2C i2c(p9, p10); 
 MCP23017 *mcp; 
 BufferedSerial pc(USBTX, USBRX);
+DigitalOut LEDS1(p17), LEDS2(p18);
+ 
+InterruptIn int0(p11), int1(p12), sw1(p13), sw2(p14);
+DigitalIn switch1(p13);
+ 
+int on_off_button = 0;
+int second_switch = 0;
 
 int loopATrigger = 0;
 int loopBTrigger = 0;
@@ -100,6 +106,24 @@ void on_int1_change() {
     loopBTrigger = 1;
 } 
 
+void on_sw1_down() { 
+    on_off_button = 0;
+    LEDS2 = 1;
+    LEDS1 = 0;
+} 
+void on_sw2_down() { 
+    second_switch = 0;
+ 
+}
+void on_sw1_up() { 
+    on_off_button = 1;
+    LEDS1 = 1;
+    LEDS2 = 0;
+} 
+void on_sw2_up() { 
+    second_switch = 1;
+}
+
 void init() { 
     // Clear current interrupts 
     mcp->_read(GPIOA); 
@@ -107,6 +131,10 @@ void init() {
     // Register callbacks 
     int0.fall(&on_int0_change); 
     int1.fall(&on_int1_change); 
+    sw1.fall(&on_sw1_down); 
+    sw2.fall(&on_sw2_down); 
+    sw1.rise(&on_sw1_up); 
+    sw2.rise(&on_sw2_up); 
     // Enable interrupts on the MCP 
     mcp->_write(GPINTENA, (unsigned char )0xff); 
     mcp->_write(GPINTENB, (unsigned char )0xff); 
@@ -179,8 +207,10 @@ void readMCPA() {
                 printf("GOT INT0 (0x%x)\n", sensor_dataA);
                 // train 2 hit this
             }
+            break;
             //printf("GOT INT0 (0x%x)\n", sensor_dataA);
             // 3 slowdown
+        case 0xfd:
             if (train1DetectorPreviousHit == 0xfe) {
                 train1DetectorPreviousHit = sensor_dataA;
                 startOneTrain(oneTrain, 0x65, 3); // ToDo slowdown before stop ??
@@ -199,13 +229,13 @@ void readMCPA() {
             // STOP for 10 loops
             if (train1DetectorPreviousHit == 0x7f || train1DetectorPreviousHit == 0xfd) {
                 train1DetectorPreviousHit = sensor_dataA;
-                startOneTrain(oneTrain, 0x60, 20); // complete stop
+                startOneTrain(oneTrain, 0x60, 30); // complete stop
                 startOneTrain(oneTrain, 0x74, 5); // start slowly to reach the next sensor
                 printf("GOT INT0 (0x%x)\n", sensor_dataA);
                 // train 1 hit this
             } else if (train2DetectorPreviousHit == 0x7f || train2DetectorPreviousHit == 0xfd) {
                 train2DetectorPreviousHit = sensor_dataA;
-                startOneTrain(secondTrain, 0x60, 20); // complete stop
+                startOneTrain(secondTrain, 0x60, 30); // complete stop
                 startOneTrain(secondTrain, 0x74, 5); // start slowly to reach the next sensor
                 printf("GOT INT0 (0x%x)\n", sensor_dataA);
                 // train 2 hit this
@@ -310,12 +340,12 @@ void readMCPB() {
         case 0xf7:
             if (train1DetectorPreviousHit == 0x7f) {
                 train1DetectorPreviousHit = sensor_data;
-                startOneTrain(oneTrain, 0x72, 3); // very slow
+                startOneTrain(oneTrain, 0x73, 3); // very slow
                 printf("GOT INT1 (0x%x)\n", sensor_data);
                 // train 1 hit this
             } else if (train2DetectorPreviousHit == 0x7f) {
                 train2DetectorPreviousHit = sensor_data;
-                startOneTrain(secondTrain, 0x72, 3); // very slow
+                startOneTrain(secondTrain, 0x73, 3); // very slow
                 printf("GOT INT1 (0x%x)\n", sensor_data);
                 // train 2 hit this
             }
@@ -325,13 +355,13 @@ void readMCPB() {
             // speed up 1
             if (train1DetectorPreviousHit == 0xf7 || train1DetectorPreviousHit == 0xdf) {
                 train1DetectorPreviousHit = sensor_data;
-                startOneTrain(oneTrain, 0x60, 20); // complete stop
+                startOneTrain(oneTrain, 0x60, 30); // complete stop
                 startOneTrain(oneTrain, 0x74, 5); // start slowly to reach the next sensor
                 printf("GOT INT1 (0x%x)\n", sensor_data);
                 // train 1 hit this
             } else if (train2DetectorPreviousHit == 0xf7 || train2DetectorPreviousHit == 0xdf) {
                 train2DetectorPreviousHit = sensor_data;
-                startOneTrain(secondTrain, 0x60, 20); // complete stop
+                startOneTrain(secondTrain, 0x60, 30); // complete stop
                 startOneTrain(secondTrain, 0x74, 5); // start slowly to reach the next sensor
                 printf("GOT INT1 (0x%x)\n", sensor_data);
                 // train 2 hit this
@@ -372,12 +402,12 @@ void readMCPB() {
             // speed up 4
             if (train1DetectorPreviousHit == 0xfd || train1DetectorPreviousHit == 0xfb) {
                 train1DetectorPreviousHit = sensor_data;
-                startOneTrain(oneTrain, 0x6a, 3); // very slow
+                startOneTrain(oneTrain, 0x62, 3); // very slow
                 printf("GOT INT1 (0x%x)\n", sensor_data);
                 // train 1 hit this
             } else if (train2DetectorPreviousHit == 0xfd || train2DetectorPreviousHit == 0xfb) {
                 train2DetectorPreviousHit = sensor_data;
-                startOneTrain(secondTrain, 0x6a, 3); // very slow
+                startOneTrain(secondTrain, 0x62, 3); // very slow
                 printf("GOT INT1 (0x%x)\n", sensor_data);
                 // train 2 hit this
             }
@@ -394,12 +424,12 @@ void readMCPB() {
 
 void findMyTrain () {
     if (loopATrigger == 1) {
-        printf("Loop a triggered");
+        printf("Loop a triggered \n");
         readMCPA();
         loopATrigger = 0;
     }
     if (loopBTrigger == 1) {
-        printf("Loop b triggered");
+        printf("Loop b triggered \n");
         readMCPB();
         loopBTrigger = 0;
     }
@@ -434,37 +464,47 @@ void findInitialTrain2Position () {
 //DCC train demo turns on headlight, dims headlight, and moves back and forth at half speed forever
 int main()
 {
-    //typical out of box default engine DCC address is 3 (at least for Bachmann trains)
-    //Note: A DCC controller can reprogram the address whenever needed
-    // unsigned int DCCaddress = 0x02; // light red train
-    // unsigned int DCCaddress_dark_red = 0x01; // dark red train
-    // unsigned int DCCaddress_new_guy = 0x03; // new red train
-    //see http://www.nmra.org/standards/DCC/standards_rps/RP-921%202006%20Aug%2021.pdf
-    //01DCSSSS for speed, D is direction (fwd=1 and rev=0), C is speed(SSSSC) LSB
-    unsigned int DCCinst_forward = 0x64; //forward half speed
-    unsigned int DCCinst_reverse = 0x48; //reverse half speed
-    //100DDDDD for basic headlight functions
-    unsigned int DCC_func_lighton = 0x90; //F0 turns on headlight function
-    unsigned int DCC_func_dimlight = 0x91; //F0 + F1 dims headlight
-    //
-    //Basic DCC Demo Commands
-    // DCC_send_command(DCCaddress,DCC_func_lighton,200); // turn light on full
-    // DCC_send_command(DCCaddress,DCC_func_dimlight,200); //dim light
-    // DCC_send_command(DCCaddress,DCC_func_lighton,200);  //light full again
-    printLCD("LCD");
-    //DCC_send_command_dark_red(DCCaddress_dark_red,DCCinst_forward,400);
-    //DCC_send_command_dark_red(DCCaddress_dark_red,DCCinst_forward,400);
-    char buf[MAXIMUM_BUFFER_SIZE] = {0};
+        //typical out of box default engine DCC address is 3 (at least for Bachmann trains)
+        //Note: A DCC controller can reprogram the address whenever needed
+        // unsigned int DCCaddress = 0x02; // light red train
+        // unsigned int DCCaddress_dark_red = 0x01; // dark red train
+        // unsigned int DCCaddress_new_guy = 0x03; // new red train
+        //see http://www.nmra.org/standards/DCC/standards_rps/RP-921%202006%20Aug%2021.pdf
+        //01DCSSSS for speed, D is direction (fwd=1 and rev=0), C is speed(SSSSC) LSB
+        unsigned int DCCinst_forward = 0x64; //forward half speed
+        unsigned int DCCinst_reverse = 0x48; //reverse half speed
+        //100DDDDD for basic headlight functions
+        unsigned int DCC_func_lighton = 0x90; //F0 turns on headlight function
+        unsigned int DCC_func_dimlight = 0x91; //F0 + F1 dims headlight
+        //
+        //Basic DCC Demo Commands
+        // DCC_send_command(DCCaddress,DCC_func_lighton,200); // turn light on full
+        // DCC_send_command(DCCaddress,DCC_func_dimlight,200); //dim light
+        // DCC_send_command(DCCaddress,DCC_func_lighton,200);  //light full again
+        printLCD("LCD");
+        //DCC_send_command_dark_red(DCCaddress_dark_red,DCCinst_forward,400);
+        //DCC_send_command_dark_red(DCCaddress_dark_red,DCCinst_forward,400);
+        char buf[MAXIMUM_BUFFER_SIZE] = {0};
 
-    bool redTrainRun = true;
-    bool analogTrainRun = true;
-    bool newTrainRun = false;
-    if (redTrainRun) {
-        oneTrain = 0x02;
+        bool redTrainRun = true;
+        bool analogTrainRun = true;
+        bool newTrainRun = false;
+        if (redTrainRun) {
+            oneTrain = 0x02;
+        }
+        // Initialisation order
+        init_mcp();
+        init();
+        on_off_button = switch1;
+        LEDS1 = switch1;
+        if (switch1 == 0){
+            LEDS2 = 1;
+        }else{
+            LEDS2 = 0;
+        } 
+    while (on_off_button == 0) { 
+        on_off_button = switch1;
     }
-    // Initialisation order
-    init_mcp();
-    init();
     int loop = 0;
     if (redTrainRun == true && newTrainRun == true) {
         startTrains(oneTrain, secondTrain, DCCinst_forward, DCCinst_forward, 5, 5);
@@ -498,9 +538,16 @@ int main()
         startOneTrain(oneTrain, 0x63, 10);
     } else {
         while(true) {
-            findMyTrain();
-            loop++;
+            if (on_off_button == 0) {
+                startOneTrain(oneTrain, 0x61, 10);
+                // startTrains(oneTrain, secondTrain, 0x60, 0x60, 5, 5);
+                printLCD("trains OFF");
+            } else {
+                findMyTrain();
+                loop++;
+            }
         }
     }
+
 }
  
