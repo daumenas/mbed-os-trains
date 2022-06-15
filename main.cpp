@@ -458,7 +458,7 @@ int main()
     //     startOneTrain(oneTrain, DCCinst_forward, 5);
     //     findInitialTrain2Position();
     // }
-    if (false) {
+    if (train1DetectorPreviousHit == 0) {
         printLCD("Trains not found try again");
         printf("Train not found");
     } else {
