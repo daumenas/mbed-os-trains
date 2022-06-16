@@ -22,6 +22,7 @@ DigitalIn switch1(p13);
 int on_off_button = 0;
 int second_switch = 0;
 
+
 int loopATrigger = 0;
 int loopBTrigger = 0;
 
