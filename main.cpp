@@ -33,6 +33,10 @@ int train1DetectorPreviousHit = 0;
 // Keeping track of the train 2
 int train2DetectorCurrentHit = 0;
 int train2DetectorPreviousHit = 0;
+
+
+int stopAtStationA = 0;
+int stopAtStationB = 0;
 // unsigned int DCCaddress = 0x02; // light red train
 // unsigned int DCCaddress_dark_red = 0x01; // dark red train
 // unsigned int DCCaddress_new_guy = 0x03; // new red train
@@ -192,6 +196,21 @@ void startOneTrain(unsigned int oneTrainAddress, unsigned int oneTrainSpeed, int
     DCC_send_command(oneTrainAddress, oneTrainSpeed, repeatCount);
 }
 
+// Stop at top station
+void stopTrainWhileStopA(unsigned int train) {
+    while(stopAtStationA == 1) {
+        printf("Waiting at the station A");
+        startOneTrain(train, 0x60, 5);
+    }
+}
+// Stop at bottom station
+void stopTrainWhileStopB(unsigned int train) {
+    while(stopAtStationB == 1) {
+        printf("Waiting at the station B");
+        startOneTrain(train, 0x60, 5);
+    }
+}
+
 void readMCPA() {
     int sensor_dataA = mcp->_read(INTCAPA);
     printf("Switch statement A\n");
@@ -228,13 +247,15 @@ void readMCPA() {
             // STOP for 10 loops
             if (train1DetectorPreviousHit == 0x7f || train1DetectorPreviousHit == 0xfd) {
                 train1DetectorPreviousHit = sensor_dataA;
-                startOneTrain(oneTrain, 0x60, 30); // complete stop
+                stopAtStationB = 1;
+                stopTrainWhileStopB(oneTrain);
                 startOneTrain(oneTrain, 0x74, 5); // start slowly to reach the next sensor
                 printf("GOT INT0 (0x%x)\n", sensor_dataA);
                 // train 1 hit this
             } else if (train2DetectorPreviousHit == 0x7f || train2DetectorPreviousHit == 0xfd) {
                 train2DetectorPreviousHit = sensor_dataA;
-                startOneTrain(secondTrain, 0x60, 30); // complete stop
+                stopAtStationB = 1;
+                stopTrainWhileStopB(secondTrain);
                 startOneTrain(secondTrain, 0x74, 5); // start slowly to reach the next sensor
                 printf("GOT INT0 (0x%x)\n", sensor_dataA);
                 // train 2 hit this
@@ -273,15 +294,16 @@ void readMCPA() {
             // doesn't exist
             break;
         case 0x7f:
-            //ToDo Check which train hit D8
             if (train1DetectorPreviousHit == 0xfd || train1DetectorPreviousHit == 0xef || train1DetectorPreviousHit == 0xf7) {
                 train1DetectorPreviousHit = sensor_dataA;
                 startOneTrain(oneTrain, 0x67, 5);
+                stopAtStationA = 0;
                 printf("GOT INT0 (0x%x)\n", sensor_dataA);
                 // train 1 hit this
             } else if (train2DetectorPreviousHit == 0xfd || train2DetectorPreviousHit == 0xef|| train2DetectorPreviousHit == 0xf7) {
                 train2DetectorPreviousHit = sensor_dataA;
                 startOneTrain(secondTrain, 0x67, 5);
+                stopAtStationA = 0;
                 printf("GOT INT0 (0x%x)\n", sensor_dataA);
                 // train 2 hit this
             }
@@ -292,7 +314,6 @@ void readMCPA() {
             // Probably show that sensor was hit but train position was lost?
             // Maybe need to check what was the previous previous position and then guess?
         }
-    //loopATrigger = 0;
 }
 
 void readMCPB() {
@@ -333,11 +354,13 @@ void readMCPB() {
                 train1DetectorPreviousHit = sensor_data;
                 startOneTrain(oneTrain, 0x73, 5); // very slow
                 printf("GOT INT1 (0x%x)\n", sensor_data);
+                stopAtStationB = 0;
                 // train 1 hit this
             } else if (train2DetectorPreviousHit == 0x7f) {
                 train2DetectorPreviousHit = sensor_data;
                 startOneTrain(secondTrain, 0x73, 5); // very slow
                 printf("GOT INT1 (0x%x)\n", sensor_data);
+                stopAtStationB = 0;
                 // train 2 hit this
             }
             break;
@@ -345,13 +368,15 @@ void readMCPB() {
             // speed up 1
             if (train1DetectorPreviousHit == 0xf7 || train1DetectorPreviousHit == 0xdf) {
                 train1DetectorPreviousHit = sensor_data;
-                startOneTrain(oneTrain, 0x60, 30); // complete stop
+                stopAtStationA = 1;
+                stopTrainWhileStopA(oneTrain);
                 startOneTrain(oneTrain, 0x74, 5); // start slowly to reach the next sensor
                 printf("GOT INT1 (0x%x)\n", sensor_data);
                 // train 1 hit this
             } else if (train2DetectorPreviousHit == 0xf7 || train2DetectorPreviousHit == 0xdf) {
                 train2DetectorPreviousHit = sensor_data;
-                startOneTrain(secondTrain, 0x60, 30); // complete stop
+                stopAtStationA = 1;
+                stopTrainWhileStopA(secondTrain);
                 startOneTrain(secondTrain, 0x74, 5); // start slowly to reach the next sensor
                 printf("GOT INT1 (0x%x)\n", sensor_data);
                 // train 2 hit this
@@ -407,16 +432,21 @@ void readMCPB() {
 }
 
 void findMyTrain () {
-    printf("Hola");
+    int triggered = 0;
     if (loopATrigger == 1) {
         printf("Loop a triggered \n");
         readMCPA();
         loopATrigger = 0;
+        triggered = 1;
     }
     if (loopBTrigger == 1) {
         printf("Loop b triggered \n");
         readMCPB();
         loopBTrigger = 0;
+        triggered = 1;
+    }
+    if (triggered == 0) {
+        printf("train stuck in find my train");
     }
 }
 
@@ -468,13 +498,6 @@ int main()
         // DCC_send_command(DCCaddress,DCC_func_lighton,200);  //light full again
         printLCD("LCD");
         char buf[MAXIMUM_BUFFER_SIZE] = {0};
-
-        bool redTrainRun = true;
-        bool analogTrainRun = true;
-        bool newTrainRun = false;
-        if (redTrainRun) {
-            oneTrain = 0x01;
-        }
         // Initialisation order
         init_mcp();
         init();
@@ -490,32 +513,15 @@ int main()
     }
     oneTrain = 0x01;
     int loop = 0;
-    if (redTrainRun == true && newTrainRun == true) {
-        startTrains(oneTrain, secondTrain, DCCinst_forward, DCCinst_forward, 5, 5);
-    } else {
-        startOneTrain(oneTrain, 0x64, 10);
-    }
-    if (train1DetectorPreviousHit == 0) {
-        printf("First check");
-        findInitialTrain1Position();
-    }
-    if (train1DetectorPreviousHit == 0) {
-        printf("Second check");
-        startOneTrain(oneTrain, 0x68, 10);
-        findInitialTrain1Position();
-    }
-    printf("Looking for position");
     while (train1DetectorPreviousHit == 0) {
-        startOneTrain(oneTrain, 0x68, 10);
+        startOneTrain(oneTrain, 0x68, 5);
         findInitialTrain1Position();
-        printf(".");
+        printf("Looking for position\n");
     }
-    // if (train2DetectorCurrentHit == 0) {
+    // while (train2DetectorPreviousHit == 0) {
+    //     startOneTrain(secondTrain, 0x68, 5);
     //     findInitialTrain2Position();
-    // }
-    // if (train2DetectorCurrentHit == 0) {
-    //     startOneTrain(oneTrain, DCCinst_forward, 5);
-    //     findInitialTrain2Position();
+    //     printf("Looking for position train 2\n");
     // }
     while(true) {
         if (on_off_button == 0) {
