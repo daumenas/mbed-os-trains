@@ -45,7 +45,7 @@ bool moveTrainTwo = false;
 // unsigned int DCCaddress = 0x02; // light red train
 // unsigned int DCCaddress_dark_red = 0x01; // dark red train
 // unsigned int DCCaddress_new_guy = 0x03; // new red train
-unsigned int oneTrain = 0x02;
+unsigned int oneTrain = 0x01;
 unsigned int secondTrain = 0x03;
 
 void DCC_send_command(unsigned int address, unsigned int inst, unsigned int repeat_count)
@@ -493,13 +493,13 @@ int main()
         on_off_button = switch1;
     }
 
-    while (train2DetectorPreviousHit == 0 && secondTrainActive) {
-        //DCC_send_command_dark_red(secondTrain, 0x68, 10);
-        wait_us(2000);
-        startOneTrain(secondTrain, 0x78, 10);
-        findInitialTrain2Position();
-        printf("Looking for position train 2\n");
-    }
+    // while (train2DetectorPreviousHit == 0 && secondTrainActive) {
+    //     //DCC_send_command_dark_red(secondTrain, 0x68, 10);
+    //     wait_us(2000);
+    //     startOneTrain(secondTrain, 0x78, 10);
+    //     findInitialTrain2Position();
+    //     printf("Looking for position train 2\n");
+    // }
 
     while (train1DetectorPreviousHit == 0 || train2DetectorPreviousHit == 0) {
         wait_us(2000);
