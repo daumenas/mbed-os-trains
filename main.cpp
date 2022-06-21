@@ -1,26 +1,38 @@
+// ##################################################
+// # PROJECT SYSTEM TESTING (2022) - Train On Rails #
+// ##################################################
+// Choo-choo group: Daumantas Patapas, Maria __, Carolina Oliveira, Ander Eguiluz
+
+// LIBRARIES
 #include "mbed.h"
 #include "TextLCD.h" 
 #include "MCP23017.h" 
 #include <string>
-//mbed DCC Model Train Demo
 
-#define MAXIMUM_BUFFER_SIZE
- 
+// #define MAXIMUM_BUFFER_SIZE
+
+// INPUTS
+DigitalIn D20(p5), D22(p6), D21(p7), switch1(p13), switch2(p14), button1(p15), button2(p16);
+InterruptIn int0(p11), int1(p12), sw1(p13), sw2(p14), bt1(p15), bt2(p16);
+
+// OUTPUTS
 DigitalOut Track(p21); //Digital output bit used to drive track power via H-bridge
-DigitalIn D21(p7);
-DigitalIn D22(p6);
-DigitalIn D20(p5);
-TextLCD lcd_screen(p30, p29, p28, p27, p26, p25); 
-I2C i2c(p9, p10); 
-MCP23017 *mcp; 
-DigitalOut LEDS1(p17), LEDS2(p18);
- 
-InterruptIn int0(p11), int1(p12), sw1(p13), sw2(p14);
-DigitalIn switch1(p13);
- 
-int on_off_button = 0;
-int second_switch = 0;
+DigitalOut GLED(p17), RLED(p18), YLEDup(p19), YLEDdown(p20), buzzer(p23);
+TextLCD lcd_screen(p30, p29, p28, p27, p26, p25);
 
+// COMMUNICATION
+I2C i2c(p9, p10); 
+
+// EXPANDER
+MCP23017 *mcp; 
+
+// GLOBAL VARIABLES
+int test = 0;
+
+bool on_off = 0; // if 1 -> GLED on; if 0 -> RLED on
+bool night_mode = 0; // if 1 -> YLEDup ON; if 0 -> YLEDdown ON
+bool kill = 0; // it kills everything (GLED & RLED on until it's reset)
+bool choo_choo = 0; // when pressed it activates the buzzer
 
 int loopATrigger = 0;
 int loopBTrigger = 0;
@@ -32,7 +44,6 @@ int train1DetectorPreviousHit = 0;
 // Keeping track of the train 2
 int train2DetectorCurrentHit = 0;
 int train2DetectorPreviousHit = 0;
-
 
 int stopAtStationA = 0;
 int stopAtStationB = 0;
@@ -48,6 +59,7 @@ bool moveTrainTwo = false;
 unsigned int oneTrain = 0x02;
 unsigned int secondTrain = 0x03;
 
+// METHODS
 void DCC_send_command(unsigned int address, unsigned int inst, unsigned int repeat_count)
 {
     unsigned __int64 command = 0x0000000000000000; // __int64 is the 64-bit integer type
@@ -109,6 +121,7 @@ void init_mcp() {
     mcp->_write(GPPUB, (unsigned char )0xff); 
 } 
 
+// Interruptions
 void on_int0_change() { 
     loopATrigger = 1;
 } 
@@ -116,25 +129,73 @@ void on_int1_change() {
     loopBTrigger = 1;
 } 
 
-void on_sw1_down() { 
-    on_off_button = 0;
-    LEDS2 = 1;
-    LEDS1 = 0;
+void on_sw1_down() {  // when switch goes up
+    on_off = 1;
+    GLED = 1;
+    RLED = 0;
 } 
 void on_sw2_down() { 
-    second_switch = 0;
- 
+    night_mode = 1;
+    YLEDdown = 0;
+    YLEDup = 1;
 }
 void on_sw1_up() { 
-    on_off_button = 1;
-    LEDS1 = 1;
-    LEDS2 = 0;
+    on_off = 0;
+    RLED = 1;
+    GLED = 0;
 } 
 void on_sw2_up() { 
-    second_switch = 1;
+    night_mode = 0;
+    YLEDdown = 1;
+    YLEDup = 0;        
+}
+void on_bt1_down() { // when it goes down
+    kill = 1;
+    GLED=1;
+    RLED=1;    
+} 
+void on_bt2_down() { 
+    buzzer = 1;    
+}
+void on_bt1_up() { 
+
+} 
+void on_bt2_up() { 
+    buzzer = 0;
+}
+void kill_system(){
+    printLCD("SYS OFF - PLEASE RESET");
+    // Disabling interrupts
+    int0.fall(NULL); 
+    int1.fall(NULL);
+    sw1.fall(NULL); 
+    sw2.fall(NULL); 
+    sw1.rise(NULL); 
+    sw2.rise(NULL);     
+    bt1.fall(NULL); 
+    bt2.fall(NULL); 
+    bt1.rise(NULL); 
+    bt2.rise(NULL);
+    printf("SYSTEM MANUALLY KILLED.\n");
+    wait_us(100000);
+    printf("please restart to run ");
+    printf("the program again.\n");
 }
 
 void init() { 
+    // Setup control box's switches
+    if (switch1){
+        RLED = switch1;
+    }else{
+        GLED = 1;
+    }
+    if (switch2){
+        YLEDdown = switch2;
+    }else{
+        YLEDup = 1;
+    }    
+    on_off = switch1;
+    night_mode = switch2;    
     // Clear current interrupts 
     mcp->_read(GPIOA); 
     mcp->_read(GPIOB); 
@@ -144,7 +205,11 @@ void init() {
     sw1.fall(&on_sw1_down); 
     sw2.fall(&on_sw2_down); 
     sw1.rise(&on_sw1_up); 
-    sw2.rise(&on_sw2_up); 
+    sw2.rise(&on_sw2_up);     
+    bt1.fall(&on_bt1_down); 
+    bt2.fall(&on_bt2_down); 
+    bt1.rise(&on_bt1_up); 
+    bt2.rise(&on_bt2_up);         
     // Enable interrupts on the MCP 
     mcp->_write(GPINTENA, (unsigned char )0xff); 
     mcp->_write(GPINTENB, (unsigned char )0xff); 
@@ -184,7 +249,6 @@ void DCC_send_command_dark_red(unsigned int address, unsigned int inst, unsigned
         i++; 
     } 
 } 
-
 void startTrains(
         unsigned int oneTrainAddress,
         unsigned int secondTrainAddress,
@@ -473,77 +537,88 @@ void findInitialTrain2Position () {
     }
 }
 
-int main()
-{
-    printLCD("LCD");
-    char buf[MAXIMUM_BUFFER_SIZE] = {0};
-        // Initialisation order
+int main() {
+    printLCD("Initializing system. \n");
+    // char buf[MAXIMUM_BUFFER_SIZE] = {0};
+    // Initialisation order: first mcp then everything else
     init_mcp();
     init();
-    on_off_button = switch1;
-    LEDS1 = switch1;
     int loop = 0;
-    if (switch1 == 0) {
-        LEDS2 = 1;
-    } else {
-        LEDS2 = 0;
-    } 
 
-    while (on_off_button == 0) { 
-        on_off_button = switch1;
-    }
 
     while (train2DetectorPreviousHit == 0 && secondTrainActive) {
         //DCC_send_command_dark_red(secondTrain, 0x68, 10);
-        wait_us(2000);
-        startOneTrain(secondTrain, 0x78, 10);
-        findInitialTrain2Position();
-        printf("Looking for position train 2\n");
+        if (kill == 1){
+            // System KILLED
+            kill_system();
+            startTrains(oneTrain, secondTrain, 0x61, 0x61, 5, 5);
+        }else{    
+            // System looking for position train1
+            wait_us(2000);
+            startOneTrain(secondTrain, 0x78, 10);
+            findInitialTrain2Position();
+            printf("Looking for position train 2\n");
+        }
     }
 
     while (train1DetectorPreviousHit == 0 || train2DetectorPreviousHit == 0) {
-        wait_us(2000);
-        startOneTrain(secondTrain, 0x78, 5);
-        findInitialTrain2Position();
-        startOneTrain(oneTrain, 0x68, 5);
-        findInitialTrain1Position();
-        printf("Looking for position\n");
+        if (kill == 1){
+            // System KILLED
+            kill_system();
+            startTrains(oneTrain, secondTrain, 0x61, 0x61, 5, 5);
+        }else{    
+            // System looking for position train2
+            wait_us(2000);
+            startOneTrain(secondTrain, 0x78, 5);
+            findInitialTrain2Position();
+            startOneTrain(oneTrain, 0x68, 5);
+            findInitialTrain1Position();
+            printf("Looking for position\n");
+        }
     }
 
     while (true) {
-        if (on_off_button == 0) {
+        if (kill == 1){
+            // System KILLED
+            kill_system();
             startTrains(oneTrain, secondTrain, 0x61, 0x61, 5, 5);
-            printLCD("trains OFF");
-        } else {
-            if (firstTrainActive == true) {
-                findMyTrain(false);
-                loop++;
-            }
-            if (secondTrainActive == true) {
-                findMyTrain(true);
-                loop++;
-            }
-            if (firstTrainActive == false) {
-                printf("First train off\n");
-                startOneTrain(oneTrain, 0x60, 5);
-            }
-            if (secondTrainActive == false) {
-                wait_us(2000);
-                printf("Second train off\n");
-               startOneTrain(secondTrain, 0x60, 5);
-            }
+        }else{
+            if (on_off == 0) {
+                // System STOPPED
+                startTrains(oneTrain, secondTrain, 0x61, 0x61, 5, 5);
+                printLCD("trains OFF");
+            } else {
+                // System WORKING
+                if (firstTrainActive == true) {
+                    findMyTrain(false);
+                    loop++;
+                }
+                if (secondTrainActive == true) {
+                    findMyTrain(true);
+                    loop++;
+                }
+                if (firstTrainActive == false) {
+                    printf("First train off\n");
+                    startOneTrain(oneTrain, 0x60, 5);
+                }
+                if (secondTrainActive == false) {
+                    wait_us(2000);
+                    printf("Second train off\n");
+                    startOneTrain(secondTrain, 0x60, 5);
+                }
 
-            if (moveTrainOne == true) {
-                moveTrainOne = false;
-                printf("First train started moving\n");
-                firstTrainActive = true;
-                startOneTrain(oneTrain, 0x64, 7);
-            }
-            if (moveTrainTwo == true) {
-                moveTrainTwo = false;
-                printf("second train started moving\n");
-                secondTrainActive = true;
-                startOneTrain(secondTrain, 0x68, 10);
+                if (moveTrainOne == true) {
+                    moveTrainOne = false;
+                    printf("First train started moving\n");
+                    firstTrainActive = true;
+                    startOneTrain(oneTrain, 0x64, 7);
+                }
+                if (moveTrainTwo == true) {
+                    moveTrainTwo = false;
+                    printf("second train started moving\n");
+                    secondTrainActive = true;
+                    startOneTrain(secondTrain, 0x68, 10);
+                }
             }
         }
     }
