@@ -553,11 +553,17 @@ int main() {
             kill_system();
             startTrains(oneTrain, secondTrain, 0x61, 0x61, 5, 5);
         }else{    
-            // System looking for position train1
-            wait_us(2000);
-            startOneTrain(secondTrain, 0x78, 10);
-            findInitialTrain2Position();
-            printf("Looking for position train 2\n");
+            if (on_off == 0) {
+                // System STOPPED
+                startTrains(oneTrain, secondTrain, 0x61, 0x61, 5, 5);
+                printLCD("trains OFF");
+            } else {
+                // System looking for position train1
+                wait_us(2000);
+                startOneTrain(secondTrain, 0x78, 10);
+                findInitialTrain2Position();
+                printf("Looking for position train 2\n");
+            }
         }
     }
 
@@ -567,13 +573,19 @@ int main() {
             kill_system();
             startTrains(oneTrain, secondTrain, 0x61, 0x61, 5, 5);
         }else{    
-            // System looking for position train2
-            wait_us(2000);
-            startOneTrain(secondTrain, 0x78, 5);
-            findInitialTrain2Position();
-            startOneTrain(oneTrain, 0x68, 5);
-            findInitialTrain1Position();
-            printf("Looking for position\n");
+            if (on_off == 0) {
+                // System STOPPED
+                startTrains(oneTrain, secondTrain, 0x61, 0x61, 5, 5);
+                printLCD("trains OFF");
+            } else {
+                // System looking for position train2
+                wait_us(2000);
+                startOneTrain(secondTrain, 0x78, 5);
+                findInitialTrain2Position();
+                startOneTrain(oneTrain, 0x68, 5);
+                findInitialTrain1Position();
+                printf("Looking for position\n");
+            }
         }
     }
 
