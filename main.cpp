@@ -56,7 +56,7 @@ bool moveTrainTwo = false;
 // unsigned int DCCaddress = 0x02; // light red train
 // unsigned int DCCaddress_dark_red = 0x01; // dark red train
 // unsigned int DCCaddress_new_guy = 0x03; // new red train
-unsigned int oneTrain = 0x02;
+unsigned int oneTrain = 0x01;
 unsigned int secondTrain = 0x03;
 
 // METHODS
