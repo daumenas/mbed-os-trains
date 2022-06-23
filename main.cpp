@@ -1,7 +1,7 @@
 // ##################################################
 // # PROJECT SYSTEM TESTING (2022) - Train On Rails #
 // ##################################################
-// Choo-choo group: Daumantas Patapas, Maria __, Carolina Oliveira, Ander Eguiluz
+// Choo-choo group: Daumantas Patapas, Maria Adamidou, Carolina Oliveira, Ander Eguiluz
 
 // LIBRARIES
 #include "mbed.h"
@@ -190,17 +190,20 @@ void kill_system(){
 void init() { 
     // Setup control box's switches
     if (switch1){
-        RLED = switch1;
+        on_off = 0;
+        RLED = 1;
     }else{
+        on_off = 1;
         GLED = 1;
     }
     if (switch2){
+        night_mode = 0; 
         YLEDdown = switch2;
     }else{
+        night_mode = 1; 
         YLEDup = 1;
     }    
-    on_off = switch1;
-    night_mode = switch2;    
+    
     // Clear current interrupts 
     mcp->_read(GPIOA); 
     mcp->_read(GPIOB); 
