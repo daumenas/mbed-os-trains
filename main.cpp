@@ -479,14 +479,14 @@ void readMCPB() {
                 lastCommandRepeatTrain1 = 5;
                 startOneTrain(oneTrain, 0x75, 5);
                 printf("INT1 (0x%x)\n", sensor_data);
-                moveTrainTwo = true;
+                //moveTrainTwo = true;
             } else if (train2DetectorPreviousHit == 0x7f || train2DetectorPreviousHit == 0xbf) {
                 train2DetectorPreviousHit = sensor_data;
                 lastCommandSpeedTrain2 = 0x75;
                 lastCommandRepeatTrain2 = 5;
                 startOneTrain(secondTrain, 0x75, 7);
                 printf("INT1 (0x%x)\n", sensor_data);
-                moveTrainOne = true;
+                //moveTrainOne = true;
             }
             break;
         case 0xef:
@@ -524,14 +524,14 @@ void readMCPB() {
                 lastCommandRepeatTrain1 = 5;
                 startOneTrain(oneTrain, 0x74, 5);
                 printf("INT1 (0x%x)\n", sensor_data);
-                moveTrainTwo = true;
+                //moveTrainTwo = true;
             } else if (train2DetectorPreviousHit == 0xfb) {
                 train2DetectorPreviousHit = sensor_data;
                 lastCommandSpeedTrain2 = 0x74;
                 lastCommandRepeatTrain2 = 5;
                 startOneTrain(secondTrain, 0x74, 7);
                 printf("INT1 (0x%x)\n", sensor_data);
-                moveTrainOne = true;
+                //moveTrainOne = true;
             }
             break;
         case 0x7f:
@@ -605,15 +605,18 @@ int main() {
                 startOneTrain(secondTrain, 0x60, 5);
             }
 
+            if (firstTrainActive == false && secondTrainActive == false) {
+                firstTrainActive = true;
+                secondTrainActive = true;
+            }
+
             if (moveTrainOne == true) {
                 moveTrainOne = false;
-                printf("First train moving\n");
                 firstTrainActive = true;
             }
 
             if (moveTrainTwo == true) {
                 moveTrainTwo = false;
-                printf("Second train moving\n");
                 secondTrainActive = true;
             }
         } else if (kill == 1) {
