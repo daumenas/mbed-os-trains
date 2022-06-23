@@ -169,7 +169,7 @@ void on_bt2_up() {
     buzzer = 0;
 }
 void kill_system(){
-    printLCD("SYS OFF - PLEASE RESET");
+    printLCD("EMERGENCY STOP - PLEASE RESET");
     // Disabling interrupts
     int0.fall(NULL); 
     int1.fall(NULL);
