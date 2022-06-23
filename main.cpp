@@ -1,7 +1,7 @@
 // ##################################################
 // # PROJECT SYSTEM TESTING (2022) - Train On Rails #
 // ##################################################
-// Choo-choo group: Daumantas Patapas, Maria __, Carolina Oliveira, Ander Eguiluz
+// Choo-choo group: Daumantas Patapas, Maria Adamidou, Carolina Oliveira, Ander Eguiluz
 
 // LIBRARIES
 #include "mbed.h"
