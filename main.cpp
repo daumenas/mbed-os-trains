@@ -39,10 +39,12 @@ int loopBTrigger = 0;
 // Keeping track of the train 1
 int train1DetectorCurrentHit = 0;
 int train1DetectorPreviousHit = 0xfb;
+int train1DetectorNextHit = 0;
 
 // Keeping track of the train 2
 int train2DetectorCurrentHit = 0;
 int train2DetectorPreviousHit = 0xf7;
+int train2DetectorNextHit = 0;
 
 int lastCommandSpeedTrain1 = 0x64;
 int lastCommandRepeatTrain1 = 1;
@@ -52,6 +54,9 @@ int lastCommandRepeatTrain2 = 1;
 
 int stopAtStationA = 0;
 int stopAtStationB = 0;
+
+int indexMissedSensorsTrain1 = 0;
+int indexMissedSensorsTrain2 = 0;
 
 bool firstTrainActive = true;
 bool secondTrainActive = true;
@@ -302,12 +307,14 @@ void readMCPA() {
         case 0xfe:
             if (train1DetectorPreviousHit == 0xdf) {
                 train1DetectorPreviousHit = sensor_dataA;
+                train1DetectorNextHit = 0xfd;
                 lastCommandSpeedTrain1 = 0x78;
                 lastCommandRepeatTrain1 = 5;
                 startOneTrain(oneTrain, 0x78, 5);
                 printf("INT0 (0x%x)\n", sensor_dataA);
             } else if (train2DetectorPreviousHit == 0xdf) {
                 train2DetectorPreviousHit = sensor_dataA;
+                train2DetectorNextHit = 0xfd;
                 lastCommandSpeedTrain2 = 0x78;
                 lastCommandRepeatTrain2 = 5;
                 startOneTrain(secondTrain, 0x78, 5);
@@ -317,12 +324,14 @@ void readMCPA() {
         case 0xfd:
             if (train1DetectorPreviousHit == 0xfe) {
                 train1DetectorPreviousHit = sensor_dataA;
+                train1DetectorNextHit = 0x7f;
                 lastCommandSpeedTrain1 = 0x74;
                 lastCommandRepeatTrain1 = 5;
                 startOneTrain(oneTrain, 0x74, 5);
                 printf("INT0 (0x%x)\n", sensor_dataA);
             } else if (train2DetectorPreviousHit == 0xfe) {
                 train2DetectorPreviousHit = sensor_dataA;
+                train2DetectorNextHit = 0x7f;
                 lastCommandSpeedTrain2 = 0x74;
                 lastCommandRepeatTrain2 = 5;
                 startOneTrain(secondTrain, 0x74, 5);
@@ -332,12 +341,14 @@ void readMCPA() {
         case 0xfb:
             if (train1DetectorPreviousHit == 0x7f || train1DetectorPreviousHit == 0xfd) {
                 train1DetectorPreviousHit = sensor_dataA;
+                train1DetectorNextHit = 0xbf;
                 printf("STOP B\n");
                 stopTrainWhileStopB(oneTrain);
                 printf("INT0 (0x%x)\n", sensor_dataA);
                 firstTrainActive = false;
             } else if (train2DetectorPreviousHit == 0x7f || train2DetectorPreviousHit == 0xfd) {
                 train2DetectorPreviousHit = sensor_dataA;
+                train2DetectorNextHit = 0xbf;
                 printf("STOP B\n");
                 stopTrainWhileStopB(secondTrain);
                 printf("INT0 (0x%x)\n", sensor_dataA);
@@ -348,6 +359,7 @@ void readMCPA() {
         case 0xf7:
             if (train1DetectorPreviousHit == 0xbf) {
                 train1DetectorPreviousHit = sensor_dataA;
+                train1DetectorNextHit = 0xfd;
                 lastCommandSpeedTrain1 = 0x6C;
                 lastCommandRepeatTrain1 = 5;
                 startOneTrain(oneTrain, 0x6C, 5);
@@ -355,6 +367,7 @@ void readMCPA() {
                 moveTrainTwo = true;
             } else if (train2DetectorPreviousHit == 0xbf) {
                 train2DetectorPreviousHit = sensor_dataA;
+                train2DetectorNextHit = 0xfd;
                 lastCommandSpeedTrain2 = 0x6C;
                 lastCommandRepeatTrain2 = 5;
                 startOneTrain(secondTrain, 0x6C, 5);
@@ -365,6 +378,8 @@ void readMCPA() {
         case 0xef:
             firstTrainActive = false;
             secondTrainActive = false;
+            startOneTrain(secondTrain, 0x61, 50);
+            startOneTrain(oneTrain, 0x61, 50);
             printLCD("Train off track");
             // if (train1DetectorPreviousHit == 0xbf) { 
             //     train1DetectorPreviousHit = sensor_dataA;
@@ -395,12 +410,14 @@ void readMCPA() {
         case 0xbf:
             if (train1DetectorPreviousHit == 0x7f) {
                 train1DetectorPreviousHit = sensor_dataA;
+                train1DetectorNextHit = 0xf7;
                 lastCommandSpeedTrain1 = 0x6A;
                 lastCommandRepeatTrain1 = 5;
                 startOneTrain(oneTrain, 0x6A, 5);
                 printf("INT0 (0x%x)\n", sensor_dataA);
             } else if (train2DetectorPreviousHit == 0x7f) {
                 train2DetectorPreviousHit = sensor_dataA;
+                train2DetectorNextHit = 0xf7;
                 lastCommandSpeedTrain2 = 0x6A;
                 lastCommandRepeatTrain2 = 5;
                 startOneTrain(secondTrain, 0x6A, 5);
@@ -410,12 +427,14 @@ void readMCPA() {
         case 0x7f:
             if (train1DetectorPreviousHit == 0xfd) {
                 train1DetectorPreviousHit = sensor_dataA;
+                train1DetectorNextHit = 0xbf;
                 lastCommandSpeedTrain1 = 0x74;
                 lastCommandRepeatTrain1 = 5;
                 startOneTrain(oneTrain, 0x74, 5);
                 printf("INT0 (0x%x)\n", sensor_dataA);
             } else if (train2DetectorPreviousHit == 0xfd) {
                 train2DetectorPreviousHit = sensor_dataA;
+                train2DetectorNextHit = 0xbf;
                 lastCommandSpeedTrain2 = 0x74;
                 lastCommandRepeatTrain2 = 5;
                 startOneTrain(secondTrain, 0x6A, 5);
@@ -436,12 +455,14 @@ void readMCPB() {
         case 0xfd:
             if (train1DetectorPreviousHit == 0xf7) {
                 train1DetectorPreviousHit = sensor_data;
+                train1DetectorNextHit = 0x7f;
                 lastCommandSpeedTrain1 = 0x6A;
                 lastCommandRepeatTrain1 = 5;
                 startOneTrain(oneTrain, 0x6A, 5);
                 printf("INT1 (0x%x)\n", sensor_data);
             } else if (train2DetectorPreviousHit == 0xf7) {
                 train2DetectorPreviousHit = sensor_data;
+                train2DetectorNextHit = 0x7f;
                 lastCommandSpeedTrain2 = 0x6A;
                 lastCommandRepeatTrain2 = 5;
                 startOneTrain(secondTrain, 0x6A, 5);
@@ -451,6 +472,8 @@ void readMCPB() {
         case 0xfb:
             firstTrainActive = false;
             secondTrainActive = false;
+            startOneTrain(secondTrain, 0x61, 50);
+            startOneTrain(oneTrain, 0x61, 50);
             printLCD("Train off track");
 
             // if (train1DetectorPreviousHit == 0xef) {
@@ -478,6 +501,7 @@ void readMCPB() {
         case 0xf7:
             if (train1DetectorPreviousHit == 0x7f || train1DetectorPreviousHit == 0xbf) {
                 train1DetectorPreviousHit = sensor_data;
+                train1DetectorNextHit = 0xef;
                 lastCommandSpeedTrain1 = 0x75;
                 lastCommandRepeatTrain1 = 5;
                 startOneTrain(oneTrain, 0x75, 5);
@@ -485,6 +509,7 @@ void readMCPB() {
                 //moveTrainTwo = true;
             } else if (train2DetectorPreviousHit == 0x7f || train2DetectorPreviousHit == 0xbf) {
                 train2DetectorPreviousHit = sensor_data;
+                train2DetectorNextHit = 0xef;
                 lastCommandSpeedTrain2 = 0x75;
                 lastCommandRepeatTrain2 = 5;
                 startOneTrain(secondTrain, 0x75, 7);
@@ -495,11 +520,13 @@ void readMCPB() {
         case 0xef:
             if (train1DetectorPreviousHit == 0xf7) {
                 train1DetectorPreviousHit = sensor_data;
+                train1DetectorNextHit = 0xdf;
                 stopTrainWhileStopA(oneTrain);
                 printf("INT1 (0x%x)\n", sensor_data);
                 firstTrainActive = false;
             } else if (train2DetectorPreviousHit == 0xf7) {
                 train2DetectorPreviousHit = sensor_data;
+                train2DetectorNextHit = 0xdf;
                 stopTrainWhileStopA(secondTrain);
                 printf("INT1 (0x%x)\n", sensor_data);
                 secondTrainActive = false;
@@ -508,12 +535,14 @@ void readMCPB() {
         case 0xdf:
             if (train1DetectorPreviousHit == 0xef) {
                 train1DetectorPreviousHit = sensor_data;
+                train1DetectorNextHit = 0xfe;
                 lastCommandSpeedTrain1 = 0x66;
                 lastCommandRepeatTrain1 = 5;
                 startOneTrain(oneTrain, 0x66, 5);
                 printf("INT1 (0x%x)\n", sensor_data);
             } else if (train2DetectorPreviousHit == 0xef) {
                 train2DetectorPreviousHit = sensor_data;
+                train2DetectorNextHit = 0xfe;
                 lastCommandSpeedTrain2 = 0x66;
                 lastCommandRepeatTrain2 = 5;
                 startOneTrain(secondTrain, 0x66, 5);
@@ -523,6 +552,7 @@ void readMCPB() {
         case 0xbf:
             if (train1DetectorPreviousHit == 0xfb) {
                 train1DetectorPreviousHit = sensor_data;
+                train1DetectorNextHit = 0xf7;
                 lastCommandSpeedTrain1 = 0x74;
                 lastCommandRepeatTrain1 = 5;
                 startOneTrain(oneTrain, 0x74, 5);
@@ -530,6 +560,7 @@ void readMCPB() {
                 //moveTrainTwo = true;
             } else if (train2DetectorPreviousHit == 0xfb) {
                 train2DetectorPreviousHit = sensor_data;
+                train2DetectorNextHit = 0xf7;
                 lastCommandSpeedTrain2 = 0x74;
                 lastCommandRepeatTrain2 = 5;
                 startOneTrain(secondTrain, 0x74, 7);
@@ -540,12 +571,14 @@ void readMCPB() {
         case 0x7f:
             if (train1DetectorPreviousHit == 0xfd) {
                 train1DetectorPreviousHit = sensor_data;
+                train1DetectorNextHit = 0xfb;
                 lastCommandSpeedTrain1 = 0x63;
                 lastCommandRepeatTrain1 = 5;
                 startOneTrain(oneTrain, 0x63, 5);
                 printf("GOT INT1 (0x%x)\n", sensor_data);
             } else if (train2DetectorPreviousHit == 0xfd) {
                 train2DetectorPreviousHit = sensor_data;
+                train2DetectorNextHit = 0xbf;
                 lastCommandSpeedTrain2 = 0x63;
                 lastCommandRepeatTrain2 = 5;
                 startOneTrain(secondTrain, 0x63, 5);
