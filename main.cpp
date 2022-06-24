@@ -967,6 +967,8 @@ int main() {
                 indexMissedSensors = 0;
                 firstTrainActive = true;
                 secondTrainActive = true;
+                turnOnSignal(2, 1);
+                turnOnSignal(4, 1);
             }
         } else if (kill == 1) {
             // System KILLED
