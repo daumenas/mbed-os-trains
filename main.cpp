@@ -332,7 +332,7 @@ int readSignal(int signal){
             } else {
                 return 1;
             }
-        default
+        default:
             return false;
     }
 }
@@ -554,12 +554,12 @@ void readMCPA() {
             }
             break;
         case 0xfb:
-            if (train1DetectorPreviousHit == 0x7f || train1DetectorPreviousHit == 0xfd || train1DetectorPreviousHit == 0xfe) {
+            if (train1DetectorPreviousHit == 0x7f || train1DetectorPreviousHit == 0xfd) {
                 train1DetectorPreviousHit = sensor_dataA;
                 train1DetectorNextHit = 0xbf;
                 stopTrainWhileStopB(oneTrain);
                 firstTrainActive = false;
-            } else if (train2DetectorPreviousHit == 0x7f || train2DetectorPreviousHit == 0xfd || train2DetectorPreviousHit == 0xfe) {
+            } else if (train2DetectorPreviousHit == 0x7f || train2DetectorPreviousHit == 0xfd) {
                 train2DetectorPreviousHit = sensor_dataA;
                 train2DetectorNextHit = 0xbf;
                 stopTrainWhileStopB(secondTrain);
@@ -567,6 +567,8 @@ void readMCPA() {
             }
             break;
         case 0xf7:
+            turnOnSignal(2, 2);
+            turnOnSignal(4, 2);
             if (train1DetectorPreviousHit == 0xbf) {
                 if (train1DetectorNextHit != 0xf7) {
                     indexMissedSensors++;
@@ -618,6 +620,8 @@ void readMCPA() {
             // doesn't exist
             break;
         case 0xbf:
+            turnOnSignal(2, 2);
+            turnOnSignal(4, 2);
             if (train1DetectorPreviousHit == 0x7f) {
                 if (train1DetectorNextHit != 0xbf) {
                     indexMissedSensors++;
@@ -639,6 +643,8 @@ void readMCPA() {
             }
             break;
         case 0x7f:
+            turnOnSignal(2, 2);
+            turnOnSignal(4, 2);
             if (train1DetectorPreviousHit == 0xfd) {
                 if (train1DetectorNextHit != 0x7f) {
                     indexMissedSensors++;
@@ -690,7 +696,7 @@ void readMCPB() {
             }
             break;
         case 0xfb:
-            indexMissedSensors = 4;
+            //indexMissedSensors = 4;
 
             // if (train1DetectorPreviousHit == 0xef) {
             //     train1DetectorPreviousHit = sensor_data;
@@ -715,6 +721,8 @@ void readMCPB() {
             // }
             break;
         case 0xf7:
+            turnOnSignal(2, 1);
+            turnOnSignal(4, 1);
             if (train1DetectorPreviousHit == 0x7f || train1DetectorPreviousHit == 0xbf) {
                 if (train1DetectorNextHit != 0xf7) {
                     indexMissedSensors++;
@@ -736,7 +744,9 @@ void readMCPB() {
             }
             break;
         case 0xef:
-            if (train1DetectorPreviousHit == 0xf7 || train1DetectorPreviousHit == 0xbf) {
+            turnOnSignal(2, 1);
+            turnOnSignal(4, 1);
+            if (train1DetectorPreviousHit == 0xf7) {
                 if (train1DetectorNextHit != 0xed) {
                     indexMissedSensors++;
                 }
@@ -744,7 +754,7 @@ void readMCPB() {
                 train1DetectorNextHit = 0xdf;
                 stopTrainWhileStopA(oneTrain);
                 firstTrainActive = false;
-            } else if (train2DetectorPreviousHit == 0xf7 || train2DetectorPreviousHit == 0xbf) {
+            } else if (train2DetectorPreviousHit == 0xf7) {
                 if (train2DetectorNextHit != 0xef) {
                     indexMissedSensors++;
                 }
@@ -755,7 +765,9 @@ void readMCPB() {
             }
             break;
         case 0xdf:
-            if (train1DetectorPreviousHit != 0xef || train2DetectorPreviousHit != 0xef) {
+            turnOnSignal(2, 1);
+            turnOnSignal(4, 1);
+            if (train1DetectorPreviousHit != 0xef && train2DetectorPreviousHit != 0xef) {
                 indexMissedSensors = 4;
                 // emergency stop
             }
@@ -780,7 +792,7 @@ void readMCPB() {
             }
             break;
         case 0xbf:
-            if (train1DetectorPreviousHit != 0xfb || train2DetectorPreviousHit != 0xfb) {
+            if (train1DetectorPreviousHit != 0xfb && train2DetectorPreviousHit != 0xfb) {
                 indexMissedSensors = 4;
                 // emergency stop
             }
@@ -876,12 +888,10 @@ int main() {
             }
 
             if (firstTrainActive == false) {
-                printf("First off\n");
                 startOneTrain(oneTrain, 0x60, 5);
             }
 
             if (secondTrainActive == false) {
-                printf("Second off\n");
                 startOneTrain(secondTrain, 0x60, 5);
             }
 
