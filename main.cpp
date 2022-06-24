@@ -33,6 +33,26 @@ bool night_mode = 0; // if 1 -> YLEDup ON; if 0 -> YLEDdown ON
 bool kill = 0; // it kills everything (GLED & RLED on until it's reset)
 bool choo_choo = 0; // when pressed it activates the buzzer
 
+// Signals address
+unsigned int lights_address = 0x42;
+
+/* Speeds
+// ------
+0 - stop        8 - speed3
+1 - e-stop      9 - speed4
+2 - speed1      10- speed5
+3 - speed2      11- speed6
+4 - speed1      12- speed7
+5 - speed2      13- speed8
+6 - speed1      14- speed9
+7 - speed2      15- speed10 (MAX)
+*/
+unsigned int f_speed[16] = {0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F}; // Forward NO lights
+unsigned int f_l_speed[16] = {0x70,0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F}; // Forward lights
+unsigned int b_speed[16] = {0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F}; // Bacward NO lights
+unsigned int b_l_speed[16] = {0x50,0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F}; // Backward NO lights
+
+
 int loopATrigger = 0;
 int loopBTrigger = 0;
 
@@ -113,6 +133,31 @@ void printLCD(string message) {
     lcd_screen.printf("%s\n", message.c_str());
 }
 
+// MCP INITIALIZATION
+/* Write a register on an I2C device */
+void mcpWriteReg(uint8_t address, uint8_t reg, uint8_t data)
+{
+    char cmd[2];
+    
+    cmd[0] = reg;
+    cmd[1] = data;
+    i2c.write(address, cmd, 2);   // Write 2 bytes to device on specified address
+}
+
+
+/* Read a register on a I2C device */
+uint8_t mcpReadReg(uint8_t address, uint8_t reg)
+{
+    char cmd[1];
+    
+    cmd[0] = reg;
+    i2c.write(address, cmd, 1);     // Write address 
+    i2c.read(address, cmd, 1);      // Read value (one byte)
+    
+    return cmd[0];                  // Return the read value
+}
+
+
 void init_mcp() { 
     // Initialisation of MCP registers, documentation on registers is available at 
     mcp = new MCP23017(i2c, 0x40); 
@@ -129,6 +174,169 @@ void init_mcp() {
     mcp->_write(GPPUA, (unsigned char )0xff); 
     mcp->_write(GPPUB, (unsigned char )0xff); 
 } 
+
+/* Init of the MCP23017 for the LED railway signals. These are also active low */
+void initMcp1()
+{
+    // Set pin direction for port A and B
+    mcpWriteReg(lights_address, IODIRA, 0x00);     // All outputs
+    mcpWriteReg(lights_address, IODIRB, 0x00);     // All outputs
+    mcpWriteReg(lights_address, OLATA, 0xff);      // All signals off
+    mcpWriteReg(lights_address, OLATB, 0xff);      // All signals off
+}
+
+/* Turns off every signal in the system */
+void turnOffSignals(){
+    mcpWriteReg(lights_address,  OLATA, 0b11111111 );
+    mcpWriteReg(lights_address,  OLATB, 0b11111111 );
+}
+
+/* Turns on a given signal in the system
+int signal => number of the signal to control (0-7)
+int mode => 
+0 = G & R off;
+1 = G on & R off;
+2 = G off & R on;
+3 = G & R on;
+*/
+void turnOnSignal(int signal, int mode){
+    uint16_t current_OLATA = mcpReadReg(lights_address, OLATA);
+    uint16_t current_OLATB = mcpReadReg(lights_address, OLATB);
+    uint16_t new_OLATA;
+    uint16_t new_OLATB;
+    switch(mode){
+        case 0: // Both OFF -> Set 1 in both G & R
+        // Special operation for setting specific bits for specific signals
+            if (signal > 0 && signal <= 3){ // OLATA
+                new_OLATA = current_OLATA |= 1UL << (signal*2);
+                new_OLATA = new_OLATA |= 1UL << (signal*2 + 1);
+                new_OLATB = current_OLATB;
+            } else if (signal > 3 && signal <= 7){ // OLATB
+                new_OLATB = current_OLATB |= 1UL << ((signal-4)*2);
+                new_OLATB = new_OLATB |= 1UL << ((signal-4)*2 + 1);
+                new_OLATA = current_OLATA;
+            }
+            printf("SETTING G ON &R OFF lights ON for signal %d\n", signal);            
+            mcpWriteReg(lights_address, OLATA, new_OLATA);
+            mcpWriteReg(lights_address, OLATB, new_OLATB);
+            break;
+        case 1: // G ON & R OFF -> 0 for G, 1 for R
+        // Clearing bit of signal (0) for G
+            if (signal > 0 && signal <= 3){ // OLATA
+                new_OLATA = current_OLATA &= ~(1UL << (signal*2));
+                new_OLATA = new_OLATA |= 1UL << (signal*2 + 1);
+                new_OLATB = current_OLATB;
+            } else if (signal > 3 && signal <= 7){ // OLATB
+                new_OLATB = current_OLATB &= ~(1UL << ((signal-4)*2));
+                new_OLATB = new_OLATB |= 1UL << ((signal-4)*2 + 1);
+                new_OLATA = current_OLATA;
+            }
+            printf("SETTING G ON &R OFF lights ON for signal %d\n", signal);            
+            mcpWriteReg(lights_address, OLATA, new_OLATA);
+            mcpWriteReg(lights_address, OLATB, new_OLATB);
+            break;
+        case 2: // G OFF & R ON -> 1 for G, 0 for R
+        // Clearing bit of signal (0) for R
+            if (signal > 0 && signal <= 3){ // OLATA
+                new_OLATA = current_OLATA |= 1UL << (signal*2);
+                new_OLATA = new_OLATA &= ~(1UL << (signal*2 + 1));
+                new_OLATB = current_OLATB; 
+            } else if (signal > 3 && signal <= 7){ // OLATB
+                new_OLATB = current_OLATB |= 1UL << ((signal-4)*2); 
+                new_OLATB = new_OLATB &= ~(1UL << ((signal-4)*2 + 1));
+                new_OLATA = current_OLATA;
+            }
+            printf("SETTING G OFF &R lights ON for signal %d\n", signal);
+            mcpWriteReg(lights_address, OLATA, new_OLATA);
+            mcpWriteReg(lights_address, OLATB, new_OLATB);
+            break;
+        case 3: // Both ON -> 0 for G & R
+        // Clearing bit of signal (0) for G & R
+            if (signal > 0 && signal <= 3){ // OLATA
+                new_OLATA = current_OLATA &= ~(1UL << (signal*2)); 
+                new_OLATA = new_OLATA &= ~(1UL << (signal*2 + 1));
+                new_OLATB = current_OLATB;
+            } else if (signal > 3 && signal <= 7){ // OLATB
+                new_OLATB = current_OLATB &= ~(1UL << ((signal-4)*2)); 
+                new_OLATB = new_OLATB &= ~(1UL << ((signal-4)*2 + 1));
+                new_OLATA = current_OLATA;
+            }
+            printf("SETTING G&R lights ON for signal %d\n", signal);
+            mcpWriteReg(lights_address, OLATA, new_OLATA);
+            mcpWriteReg(lights_address, OLATB, new_OLATB);
+            break;
+        default:
+            break;
+    }
+}
+
+/* Reads a given signal in the system
+int signal => number of the signal to read
+RETURNS int mode => 
+0 = G & R off;
+1 = G on & R off;
+2 = G off & R on;
+3 = G & R on;
+*/
+int readSignal(int signal){
+    uint16_t current_OLATA = mcpReadReg(lights_address, OLATA);
+    uint16_t current_OLATB = mcpReadReg(lights_address, OLATB);
+    bool g_bit;
+    bool r_bit;
+    switch(signal){
+        case 0:
+            g_bit = (current_OLATA >> (signal*2)) & 1U;
+            r_bit = (current_OLATA >> (signal*2 + 1)) & 1U;
+            break;
+        case 1:
+            g_bit = (current_OLATA >> (signal*2)) & 1U;
+            r_bit = (current_OLATA >> (signal*2 + 1)) & 1U;
+            break;
+        case 2:
+            g_bit = (current_OLATA >> (signal*2)) & 1U;
+            r_bit = (current_OLATA >> (signal*2 + 1)) & 1U;
+            break;
+        case 3:
+            g_bit = (current_OLATA >> (signal*2)) & 1U;
+            r_bit = (current_OLATA >> (signal*2 + 1)) & 1U;
+            break;
+        case 4:
+            g_bit = (current_OLATA >> ((signal-4)*2)) & 1U;
+            r_bit = (current_OLATA >> ((signal-4)*2 + 1)) & 1U;
+            break;
+        case 5:
+            g_bit = (current_OLATA >> ((signal-4)*2)) & 1U;
+            r_bit = (current_OLATA >> ((signal-4)*2 + 1)) & 1U;
+            break;
+        case 6:
+            g_bit = (current_OLATA >> ((signal-4)*2)) & 1U;
+            r_bit = (current_OLATA >> ((signal-4)*2 + 1)) & 1U;
+            break;
+        case 7:
+            g_bit = (current_OLATA >> ((signal-4)*2)) & 1U;
+            r_bit = (current_OLATA >> ((signal-4)*2 + 1)) & 1U;
+            break;
+        default:
+            break;
+    }
+    switch(g_bit){
+        case 0:
+            if (r_bit){
+                return 2;
+            } else {
+                return 0;
+            }
+        case 1:
+            if (r_bit){
+                return 3;
+            } else {
+                return 1;
+            }
+        default
+            return false;
+    }
+}
+
 
 // Interruptions
 void on_int0_change() { 
@@ -671,6 +879,7 @@ int main() {
     char buf[MAXIMUM_BUFFER_SIZE] = {0};
     // Initialisation order: first mcp then everything else
     init_mcp();
+    initMcp1();
     init();
 
     while (true) {
