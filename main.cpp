@@ -84,6 +84,8 @@ bool secondTrainActive = true;
 bool moveTrainOne = false;
 bool moveTrainTwo = false;
 
+bool isRedLight = false;
+bool isFirstTrain = false;
 int currentLight = 0;
 // unsigned int DCCaddress = 0x02; // light red train
 // unsigned int DCCaddress_dark_red = 0x01; // dark red train
@@ -581,8 +583,9 @@ void readMCPA() {
             }
             break;
         case 0xf7:
-            turnOnSignal(2, 2);
-            turnOnSignal(4, 2);
+            isRedLight = true;
+            //turnOnSignal(2, 2);
+            //turnOnSignal(4, 2);
             if (train1DetectorPreviousHit == 0xbf) {
                 if (train1DetectorNextHit != 0xf7) {
                     indexMissedSensors++;
@@ -636,9 +639,11 @@ void readMCPA() {
             // doesn't exist
             break;
         case 0xbf:
-            turnOnSignal(2, 2);
-            turnOnSignal(4, 2);
+            isRedLight = true;
+            // turnOnSignal(2, 2);
+            // turnOnSignal(4, 2);
             if (train1DetectorPreviousHit == 0x7f) {
+                isFirstTrain = true;
                 if (train1DetectorNextHit != 0xbf) {
                     indexMissedSensors++;
                 }
@@ -649,6 +654,7 @@ void readMCPA() {
                 startOneTrain(oneTrain, 0x6A, 3);
                 printf("INT0 (0x%x)\n", sensor_dataA);
             } else if (train2DetectorPreviousHit == 0x7f) {
+                isFirstTrain = false;
                 if (train2DetectorNextHit != 0xbf) {
                     indexMissedSensors++;
                 }
@@ -661,9 +667,11 @@ void readMCPA() {
             }
             break;
         case 0x7f:
-            turnOnSignal(2, 2);
-            turnOnSignal(4, 2);
+            isRedLight = true;
+            // turnOnSignal(2, 2);
+            // turnOnSignal(4, 2);
             if (train1DetectorPreviousHit == 0xfd) {
+                isFirstTrain = true;
                 if (train1DetectorNextHit != 0x7f) {
                     indexMissedSensors++;
                 }
@@ -674,6 +682,7 @@ void readMCPA() {
                 startOneTrain(oneTrain, 0x74, 3);
                 printf("INT0 (0x%x)\n", sensor_dataA);
             } else if (train2DetectorPreviousHit == 0xfd) {
+                isFirstTrain = false;
                 if (train2DetectorNextHit != 0x7f) {
                     indexMissedSensors++;
                 }
@@ -696,6 +705,7 @@ void readMCPB() {
     switch(sensor_data) {
         case 0xfd:
             if (train1DetectorPreviousHit == 0xf7) {
+                isFirstTrain = true;
                 if (train1DetectorNextHit != 0xfd) {
                     indexMissedSensors++;
                 }
@@ -706,6 +716,7 @@ void readMCPB() {
                 startOneTrain(oneTrain, 0x6A, 3);
                 printf("INT1 (0x%x)\n", sensor_data);
             } else if (train2DetectorPreviousHit == 0xf7) {
+                isFirstTrain = false;
                 if (train2DetectorNextHit != 0xfd) {
                     indexMissedSensors++;
                 }
@@ -743,8 +754,9 @@ void readMCPB() {
             // }
             break;
         case 0xf7:
-            turnOnSignal(2, 1);
-            turnOnSignal(4, 1);
+            isRedLight = false;
+            // turnOnSignal(2, 1);
+            // turnOnSignal(4, 1);
             if (train1DetectorPreviousHit == 0x7f || train1DetectorPreviousHit == 0xbf) {
                 if (train1DetectorNextHit != 0xf7) {
                     indexMissedSensors++;
@@ -768,8 +780,9 @@ void readMCPB() {
             }
             break;
         case 0xef:
-            turnOnSignal(2, 1);
-            turnOnSignal(4, 1);
+            isRedLight = false;
+            // turnOnSignal(2, 1);
+            // turnOnSignal(4, 1);
             if (train1DetectorPreviousHit == 0xf7) {
                 if (train1DetectorNextHit != 0xed) {
                     indexMissedSensors++;
@@ -791,8 +804,7 @@ void readMCPB() {
             }
             break;
         case 0xdf:
-            turnOnSignal(2, 1);
-            turnOnSignal(4, 1);
+            isRedLight = false;
             if (train1DetectorPreviousHit != 0xef && train2DetectorPreviousHit != 0xef) {
                 indexMissedSensors = 4;
                 // emergency stop
@@ -820,7 +832,6 @@ void readMCPB() {
             }
             break;
         case 0xbf:
-            currentLight = readSignal(4);
             if (train1DetectorPreviousHit != 0xfb && train2DetectorPreviousHit != 0xfb) {
                 indexMissedSensors = 4;
                 // emergency stop
@@ -848,7 +859,6 @@ void readMCPB() {
             }
             break;
         case 0x7f:
-            currentLight = readSignal(4);
             if (train1DetectorPreviousHit == 0xfd || train1DetectorNextHit == 0xfd) {
                 if (train1DetectorNextHit != 0x7f) {
                     indexMissedSensors++;
@@ -902,21 +912,32 @@ int main() {
     while (true) {
         if (kill == 0 && on_off == 1) {
             // System WORKING
-            if (indexMissedSensors >= 3) {
+            if (indexMissedSensors >= 3000) {
                 kill = 1;
                 GLED=1;
                 RLED=1; 
                 kill_mss = true;
             }
+            if (isRedLight) {
+                turnOnSignal(2, 2);
+                turnOnSignal(4, 2);
+            }
+            if (isRedLight) {
+                if (isFirstTrain) {
+                    firstTrainActive = false;
+                } else {
+                    secondTrainActive = false;
+                }
+                isRedLight = false;
+            }
+
             if (secondTrainActive == true) {
-                printf("Hello 2 \n");
                 bool hasTriggered = findMyTrain();
                 if (hasTriggered == false) {
                     startOneTrain(secondTrain, lastCommandSpeedTrain2, lastCommandRepeatTrain2);
                 }
             }
             if (firstTrainActive == true) {
-                 printf("Hello 1 \n");
                 bool hasTriggered = findMyTrain();
                 if (hasTriggered == false) {
                     startOneTrain(oneTrain, lastCommandSpeedTrain1, lastCommandRepeatTrain1);
@@ -924,21 +945,11 @@ int main() {
             }
 
             if (firstTrainActive == false) {
-                printf("Stop 1 \n");
                 startOneTrain(oneTrain, 0x60, 5);
             }
 
             if (secondTrainActive == false) {
-                printf("Stop 2 \n");
                 startOneTrain(secondTrain, 0x60, 5);
-            }
-
-            if (firstTrainActive == false && secondTrainActive == false) {
-                loopATrigger = 0;
-                loopBTrigger = 0;
-                indexMissedSensors = 0;
-                firstTrainActive = true;
-                secondTrainActive = true;
             }
 
             if (moveTrainOne == true) {
@@ -948,6 +959,13 @@ int main() {
 
             if (moveTrainTwo == true) {
                 moveTrainTwo = false;
+                secondTrainActive = true;
+            }
+            if (firstTrainActive == false && secondTrainActive == false) {
+                loopATrigger = 0;
+                loopBTrigger = 0;
+                indexMissedSensors = 0;
+                firstTrainActive = true;
                 secondTrainActive = true;
             }
         } else if (kill == 1) {
