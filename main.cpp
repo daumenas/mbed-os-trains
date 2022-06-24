@@ -301,39 +301,38 @@ int readSignal(int signal){
             r_bit = (current_OLATA >> (signal*2 + 1)) & 1U;
             break;
         case 4:
-            g_bit = (current_OLATA >> ((signal-4)*2)) & 1U;
-            r_bit = (current_OLATA >> ((signal-4)*2 + 1)) & 1U;
+            g_bit = (current_OLATB >> ((signal-4)*2)) & 1U;
+            r_bit = (current_OLATB >> ((signal-4)*2 + 1)) & 1U;
             break;
         case 5:
-            g_bit = (current_OLATA >> ((signal-4)*2)) & 1U;
-            r_bit = (current_OLATA >> ((signal-4)*2 + 1)) & 1U;
+            g_bit = (current_OLATB >> ((signal-4)*2)) & 1U;
+            r_bit = (current_OLATB >> ((signal-4)*2 + 1)) & 1U;
             break;
         case 6:
-            g_bit = (current_OLATA >> ((signal-4)*2)) & 1U;
-            r_bit = (current_OLATA >> ((signal-4)*2 + 1)) & 1U;
+            g_bit = (current_OLATB >> ((signal-4)*2)) & 1U;
+            r_bit = (current_OLATB >> ((signal-4)*2 + 1)) & 1U;
             break;
         case 7:
-            g_bit = (current_OLATA >> ((signal-4)*2)) & 1U;
-            r_bit = (current_OLATA >> ((signal-4)*2 + 1)) & 1U;
+            g_bit = (current_OLATB >> ((signal-4)*2)) & 1U;
+            r_bit = (current_OLATB >> ((signal-4)*2 + 1)) & 1U;
             break;
         default:
             break;
     }
-    switch(g_bit){
-        case 0:
-            if (r_bit){
-                return 2;
-            } else {
-                return 0;
-            }
-        case 1:
-            if (r_bit){
-                return 3;
-            } else {
-                return 1;
-            }
-        default
-            return false;
+
+// 0 is ON and 1 is OFF
+    if (g_bit){
+        if (r_bit){
+            return 0;
+        } else {
+            return 2;
+        }
+    } else {
+        if (r_bit){
+            return 1;
+        } else {
+            return 3;
+        }
     }
 }
 
