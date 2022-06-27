@@ -36,6 +36,7 @@ bool choo_choo = 0; // when pressed it activates the buzzer
 
 // Signals address
 unsigned int lights_address = 0x42;
+unsigned int switch_address = 0x06;
 
 /* Speeds
 // ------
@@ -477,6 +478,51 @@ void DCC_send_command_dark_red(unsigned int address, unsigned int inst, unsigned
         i++; 
     } 
 } 
+
+/* Control a particular switch
+int sw -> switch to control (1-4)
+bool close_open -> 0 outwards, 1 inwards
+ATTENTION: SW2 needs at least 2s between sending him instructions to switch again
+*/
+void send_command_switch(int sw, bool out_in){
+    switch(sw){
+        case 1:
+            if (out_in){ // inwards (1 command)
+                DCC_send_command(switch_address,0x81,1);
+            } else { // outwards (1 + idle)
+                DCC_send_command(switch_address,0x81,1);
+                DCC_send_command(switch_address,0x80,1);
+            }
+            break;
+        case 2: // WARNING -> THIS SWITCH NEEDS AT LEAST 2s to be switched again!
+            if (out_in){ // inwards (1 command)
+                DCC_send_command(switch_address,0x82,1);
+            } else { // outwards (1 + idle)
+                DCC_send_command(switch_address,0x82,1);
+                DCC_send_command(switch_address,0x80,1);
+            }
+            break;
+        case 3: // command reversed
+            if (out_in){
+                DCC_send_command(switch_address,0x84,1);
+                DCC_send_command(switch_address,0x80,1);
+            } else {
+                DCC_send_command(switch_address,0x84,1);
+            }        
+            break;
+        case 4:
+            if (out_in){ // inwards (1 command)
+                DCC_send_command(switch_address,0x88,1);
+            } else { // outwards (1 + idle)
+                DCC_send_command(switch_address,0x88,1);
+                DCC_send_command(switch_address,0x80,1);
+            }
+        default:
+            break;
+    }
+}
+
+
 void startTrains(
         unsigned int oneTrainAddress,
         unsigned int secondTrainAddress,
