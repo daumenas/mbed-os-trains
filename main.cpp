@@ -536,9 +536,11 @@ void stopTrainWhileStopA(unsigned int train) {
     if (train == oneTrain) {
         startOneTrain(oneTrain, 1, 10);
         firstTrainActive = false;
+        turnOnSignal(5, 2);
     } else {
         startOneTrain(secondTrain, 1, 10);
         secondTrainActive = false;
+        turnOnSignal(5, 2);
     }
 }
 
@@ -547,9 +549,11 @@ void stopTrainWhileStopB(unsigned int train) {
     if (train == oneTrain) {
         startOneTrain(oneTrain, 1, 10);
         firstTrainActive = false;
+        turnOnSignal(5, 1);
     } else {
         startOneTrain(secondTrain, 1, 10);
         secondTrainActive = false;
+        turnOnSignal(5, 1);
     }
 }
 
