@@ -29,6 +29,7 @@ MCP23017 *mcp;
 // GLOBAL VARIABLES
 
 bool on_off = 0; // if 1 -> GLED on; if 0 -> RLED on
+bool on_off_mss = 0;
 bool night_mode = 0; // if 1 -> YLEDup ON; if 0 -> YLEDdown ON
 bool kill = 0; // it kills everything (GLED & RLED on until it's reset)
 bool kill_mss = 0; 
@@ -355,6 +356,7 @@ void on_int1_change() {
 
 void on_sw1_down() {  // when switch goes up
     on_off = 1;
+    on_off_mss = 1;
     GLED = 1;
     RLED = 0;
 } 
@@ -420,76 +422,6 @@ void kill_system(){
     }
 }
 
-void init() { 
-    // Setup control box's switches
-    if (switch1){
-        on_off = 0;
-        RLED = 1;
-    }else{
-        on_off = 1;
-        GLED = 1;
-    }
-    if (switch2){
-        night_mode = 0; 
-        YLEDdown = switch2;
-    }else{
-        night_mode = 1; 
-        YLEDup = 1;
-    }    
-    
-    // Clear current interrupts 
-    mcp->_read(GPIOA); 
-    mcp->_read(GPIOB); 
-    // Register callbacks 
-    int0.fall(&on_int0_change); 
-    int1.fall(&on_int1_change); 
-    sw1.fall(&on_sw1_down); 
-    sw2.fall(&on_sw2_down); 
-    sw1.rise(&on_sw1_up); 
-    sw2.rise(&on_sw2_up);     
-    bt1.fall(&on_bt1_down); 
-    bt2.fall(&on_bt2_down); 
-    bt1.rise(&on_bt1_up); 
-    bt2.rise(&on_bt2_up);         
-    // Enable interrupts on the MCP 
-    mcp->_write(GPINTENA, (unsigned char )0xff); 
-    mcp->_write(GPINTENB, (unsigned char )0xff); 
-    // Ready to go! 
-} 
-
-void DCC_send_command_dark_red(unsigned int address, unsigned int inst, unsigned int repeat_count) 
-{     
-    unsigned __int64 new_command = 0x3FFF00803FC03FD; 
-    unsigned __int64 temp_command = 0x00; 
-
-    int i=0; 
-//repeat DCC command lots of times  
- 
-    while(i < repeat_count) { 
-        temp_command = new_command; 
-//loops through packet bits encoding and sending out digital pulses for a DCC command 
-        for (int j=0; j<64; j++) { 
-            if((temp_command&0x8000000000000000)==0) { //test packet bit 
-                //send data for a "0" bit 
-                Track=0; 
-                wait_us(100); 
-                Track=1; 
-                wait_us(100); 
-                //printf("0011"); 
-            } else { 
-                //send data for a "1"bit 
-                Track=0; 
-                wait_us(58); 
-                Track=1; 
-                wait_us(58); 
-                //printf("01"); 
-            } 
-            // next bit in packet 
-            temp_command = temp_command<<1; 
-        } 
-        i++; 
-    } 
-} 
 
 /* Control a particular switch
 int sw -> switch to control (1-4)
@@ -534,6 +466,40 @@ void send_command_switch(int sw, bool out_in){
     }
 }
 
+void DCC_send_command_dark_red(unsigned int address, unsigned int inst, unsigned int repeat_count) 
+{     
+    unsigned __int64 new_command = 0x3FFF00803FC03FD; 
+    unsigned __int64 temp_command = 0x00; 
+
+    int i=0; 
+//repeat DCC command lots of times  
+ 
+    while(i < repeat_count) { 
+        temp_command = new_command; 
+//loops through packet bits encoding and sending out digital pulses for a DCC command 
+        for (int j=0; j<64; j++) { 
+            if((temp_command&0x8000000000000000)==0) { //test packet bit 
+                //send data for a "0" bit 
+                Track=0; 
+                wait_us(100); 
+                Track=1; 
+                wait_us(100); 
+                //printf("0011"); 
+            } else { 
+                //send data for a "1"bit 
+                Track=0; 
+                wait_us(58); 
+                Track=1; 
+                wait_us(58); 
+                //printf("01"); 
+            } 
+            // next bit in packet 
+            temp_command = temp_command<<1; 
+        } 
+        i++; 
+    } 
+} 
+
 
 void startTrains(
         unsigned int oneTrainAddress,
@@ -543,7 +509,7 @@ void startTrains(
         int repeatCountFirst,
         int reapeatCountSecond
         ) {
-        if (night_mode){
+        if (!night_mode){
             DCC_send_command(oneTrainAddress, f_l_speed[oneTrainSpeed], repeatCountFirst);
             DCC_send_command(secondTrainAddress, f_l_speed[secondTrainSpeed], reapeatCountSecond);
         } else {
@@ -554,7 +520,7 @@ void startTrains(
 
 void startOneTrain(unsigned int oneTrainAddress, unsigned int oneTrainSpeed, int repeatCount) {
     if (oneTrainAddress != 0x02) {
-        if (night_mode){
+        if (!night_mode){
             DCC_send_command(oneTrainAddress, f_speed[oneTrainSpeed], repeatCount);        
         } else {
             DCC_send_command(oneTrainAddress, f_l_speed[oneTrainSpeed], repeatCount);
@@ -587,10 +553,23 @@ void stopTrainWhileStopB(unsigned int train) {
     }
 }
 
+void set_switches(){
+    // send_command_switch(1,1);
+    // wait_us(10000);
+    send_command_switch(2,1);
+    wait_us(2000);
+    startTrains(oneTrain, secondTrain, 0, 0, 3, 3);
+    send_command_switch(3,1);
+    wait_us(2000);
+    // send_command_switch(4,1);
+    // wait_us(10000);
+}
+
+
 void readMCPA() {
     wait_us(2000);
     int sensor_dataA = mcp->_read(INTCAPA);
-    printf("INT0 (0x%x)\n", sensor_dataA);
+    // printf("INT0 (0x%x)\n", sensor_dataA);
     switch(sensor_dataA) {
         case 0xfe:
             if (train1DetectorPreviousHit == 0xdf || train1DetectorPreviousHit == 0xef) {
@@ -602,7 +581,7 @@ void readMCPA() {
                 lastCommandSpeedTrain1 = 5;
                 lastCommandRepeatTrain1 = 3;
                 startOneTrain(oneTrain, 5, 3);
-                printf("INT0 (0x%x)\n", sensor_dataA);
+                // printf("INT0 (0x%x)\n", sensor_dataA);
             } else if (train2DetectorPreviousHit == 0xdf || train2DetectorPreviousHit == 0xef) {
                 if (train2DetectorNextHit != 0xfe) {
                     indexMissedSensors++;
@@ -612,7 +591,7 @@ void readMCPA() {
                 lastCommandSpeedTrain2 = 5;
                 lastCommandRepeatTrain2 = 3;
                 startOneTrain(secondTrain, 5, 3);
-                printf("INT0 (0x%x)\n", sensor_dataA);
+                // printf("INT0 (0x%x)\n", sensor_dataA);
             }
             break;
         case 0xfd:
@@ -625,7 +604,7 @@ void readMCPA() {
                 lastCommandSpeedTrain1 = 4;
                 lastCommandRepeatTrain1 = 3;
                 startOneTrain(oneTrain, 4, 3);
-                printf("INT0 (0x%x)\n", sensor_dataA);
+                // printf("INT0 (0x%x)\n", sensor_dataA);
             } else if (train2DetectorPreviousHit == 0xfe || train1DetectorNextHit == 0xfd) {
                 if (train2DetectorNextHit != 0xfd) {
                     indexMissedSensors++;
@@ -635,7 +614,7 @@ void readMCPA() {
                 lastCommandSpeedTrain2 = 4;
                 lastCommandRepeatTrain2 = 3;
                 startOneTrain(secondTrain, 4, 3);
-                printf("INT0 (0x%x)\n", sensor_dataA);
+                // printf("INT0 (0x%x)\n", sensor_dataA);
             }
             printf("FD GOT HIT (0x%x)\n", sensor_dataA);
             break;
@@ -645,13 +624,13 @@ void readMCPA() {
                 train1DetectorNextHit = 0xbf;
                 stopTrainWhileStopB(oneTrain);
                 firstTrainActive = false;
-                printf("INT0 (0x%x)\n", sensor_dataA);
+                // printf("INT0 (0x%x)\n", sensor_dataA);
             } else if (train2DetectorPreviousHit == 0x7f || train2DetectorPreviousHit == 0xfd) {
                 train2DetectorPreviousHit = sensor_dataA;
                 train2DetectorNextHit = 0xbf;
                 stopTrainWhileStopB(secondTrain);
                 secondTrainActive = false;
-                printf("INT0 (0x%x)\n", sensor_dataA);
+                // //printf("INT0 (0x%x)\n", sensor_dataA);
             }
             break;
         case 0xf7:
@@ -669,7 +648,7 @@ void readMCPA() {
                 lastCommandRepeatTrain1 = 3;
                 startOneTrain(oneTrain, 12, 3);
                 moveTrainTwo = true;
-                printf("INT0 (0x%x)\n", sensor_dataA);
+                //printf("INT0 (0x%x)\n", sensor_dataA);
             } else if (train2DetectorPreviousHit == 0xbf) {
                 if (train2DetectorNextHit != 0xf7) {
                     indexMissedSensors++;
@@ -680,7 +659,7 @@ void readMCPA() {
                 lastCommandRepeatTrain2 = 3;
                 startOneTrain(secondTrain, 12, 3);
                 moveTrainOne = true;
-                printf("INT0 (0x%x)\n", sensor_dataA);
+                //printf("INT0 (0x%x)\n", sensor_dataA);
             }
             break;
         case 0xef:
@@ -690,7 +669,7 @@ void readMCPA() {
             //     lastCommandSpeedTrain1 = 0x61;
             //     lastCommandRepeatTrain1 = 5;
             //     startOneTrain(oneTrain, 0x61, 5);
-            //     printf("INT0 (0x%x)\n", sensor_dataA);
+            //     //printf("INT0 (0x%x)\n", sensor_dataA);
             // } else if (train2DetectorPreviousHit == 0xbf || train2DetectorPreviousHit == 0x7f) { // TRAIN ON WRONG ROUTE
             //     train2DetectorPreviousHit = sensor_dataA;
             //     lastCommandSpeedTrain2 = 0x61;
@@ -725,7 +704,7 @@ void readMCPA() {
                 lastCommandSpeedTrain1 = 10;
                 lastCommandRepeatTrain1 = 3;
                 startOneTrain(oneTrain, 10, 3);
-                printf("INT0 (0x%x)\n", sensor_dataA);
+                //printf("INT0 (0x%x)\n", sensor_dataA);
             } else if (train2DetectorPreviousHit == 0x7f) {
                 isFirstTrain = false;
                 if (train2DetectorNextHit != 0xbf) {
@@ -735,8 +714,9 @@ void readMCPA() {
                 train2DetectorNextHit = 0xf7;
                 lastCommandSpeedTrain2 = 7;
                 lastCommandRepeatTrain2 = 3;
-                startOneTrain(secondTrain, 7, 3);
-                printf("INT0 (0x%x)\n", sensor_dataA);
+                // startOneTrain(secondTrain, 7, 3);
+                startOneTrain(secondTrain, 5, 3);
+                //printf("INT0 (0x%x)\n", sensor_dataA);
             }
             break;
         case 0x7f:
@@ -753,7 +733,7 @@ void readMCPA() {
                 lastCommandSpeedTrain1 = 4;
                 lastCommandRepeatTrain1 = 3;
                 startOneTrain(oneTrain, 4, 3);
-                printf("INT0 (0x%x)\n", sensor_dataA);
+                //printf("INT0 (0x%x)\n", sensor_dataA);
             } else if (train2DetectorPreviousHit == 0xfd) {
                 isFirstTrain = false;
                 if (train2DetectorNextHit != 0x7f) {
@@ -764,7 +744,7 @@ void readMCPA() {
                 lastCommandSpeedTrain2 = 4;
                 lastCommandRepeatTrain2 = 3;
                 startOneTrain(secondTrain, 4, 3);
-                printf("INT0 (0x%x)\n", sensor_dataA);
+                //printf("INT0 (0x%x)\n", sensor_dataA);
             }
             break;
         default:
@@ -787,7 +767,7 @@ void readMCPB() {
                 lastCommandSpeedTrain1 = 10;
                 lastCommandRepeatTrain1 = 3;
                 startOneTrain(oneTrain, 10, 3);
-                printf("INT1 (0x%x)\n", sensor_data);
+                //printf("INT1 (0x%x)\n", sensor_data);
             } else if (train2DetectorPreviousHit == 0xf7) {
                 isFirstTrain = false;
                 if (train2DetectorNextHit != 0xfd) {
@@ -798,7 +778,7 @@ void readMCPB() {
                 lastCommandSpeedTrain2 = 10;
                 lastCommandRepeatTrain2 = 3;
                 startOneTrain(secondTrain, 10, 3);
-                printf("INT1 (0x%x)\n", sensor_data);
+                //printf("INT1 (0x%x)\n", sensor_data);
             }
             break;
         case 0xfb:
@@ -839,7 +819,7 @@ void readMCPB() {
                 lastCommandSpeedTrain1 = 5;
                 lastCommandRepeatTrain1 = 3;
                 startOneTrain(oneTrain, 5, 3);
-                printf("INT1 (0x%x)\n", sensor_data);
+                //printf("INT1 (0x%x)\n", sensor_data);
             } else if (train2DetectorPreviousHit == 0x7f || train2DetectorPreviousHit == 0xbf) {
                 if (train2DetectorNextHit != 0xf7) {
                     indexMissedSensors++;
@@ -849,7 +829,7 @@ void readMCPB() {
                 lastCommandSpeedTrain2 = 5;
                 lastCommandRepeatTrain2 = 3;
                 startOneTrain(secondTrain, 5, 3);
-                printf("INT1 (0x%x)\n", sensor_data);
+                //printf("INT1 (0x%x)\n", sensor_data);
             }
             break;
         case 0xef:
@@ -864,7 +844,7 @@ void readMCPB() {
                 train1DetectorNextHit = 0xdf;
                 stopTrainWhileStopA(oneTrain);
                 firstTrainActive = false;
-                printf("INT1 (0x%x)\n", sensor_data);
+                //printf("INT1 (0x%x)\n", sensor_data);
             } else if (train2DetectorPreviousHit == 0xf7) {
                 if (train2DetectorNextHit != 0xef) {
                     indexMissedSensors++;
@@ -873,7 +853,7 @@ void readMCPB() {
                 train2DetectorNextHit = 0xdf;
                 stopTrainWhileStopA(secondTrain);
                 secondTrainActive = false;
-                printf("INT1 (0x%x)\n", sensor_data);
+                //printf("INT1 (0x%x)\n", sensor_data);
             }
             break;
         case 0xdf:
@@ -891,7 +871,7 @@ void readMCPB() {
                 lastCommandSpeedTrain1 = 6;
                 lastCommandRepeatTrain1 = 3;
                 startOneTrain(oneTrain, 6, 3);
-                printf("INT1 (0x%x)\n", sensor_data);
+                //printf("INT1 (0x%x)\n", sensor_data);
             } else if (train2DetectorPreviousHit == 0xef) {
                 if (train2DetectorNextHit != 0xdf) {
                     indexMissedSensors++;
@@ -901,7 +881,7 @@ void readMCPB() {
                 lastCommandSpeedTrain2 = 6;
                 lastCommandRepeatTrain2 = 3;
                 startOneTrain(secondTrain, 6, 3);
-                printf("INT1 (0x%x)\n", sensor_data);
+                //printf("INT1 (0x%x)\n", sensor_data);
             }
             break;
         case 0xbf:
@@ -918,7 +898,7 @@ void readMCPB() {
                 lastCommandSpeedTrain1 = 4;
                 lastCommandRepeatTrain1 = 3;
                 startOneTrain(oneTrain, 4, 3);
-                printf("INT1 (0x%x)\n", sensor_data);
+                //printf("INT1 (0x%x)\n", sensor_data);
             } else if (train2DetectorPreviousHit == 0xfb || train2DetectorPreviousHit == 0x7f) {
                 if (train2DetectorNextHit != 0xbf) {
                     indexMissedSensors++;
@@ -928,7 +908,7 @@ void readMCPB() {
                 lastCommandSpeedTrain2 = 4;
                 lastCommandRepeatTrain2 = 3;
                 startOneTrain(secondTrain, 4, 3);
-                printf("INT1 (0x%x)\n", sensor_data);
+                //printf("INT1 (0x%x)\n", sensor_data);
             }
             break;
         case 0x7f:
@@ -941,7 +921,7 @@ void readMCPB() {
                 lastCommandSpeedTrain1 = 3;
                 lastCommandRepeatTrain1 = 3;
                 startOneTrain(oneTrain, 3, 3);
-                printf("INT1 (0x%x)\n", sensor_data);
+                //printf("INT1 (0x%x)\n", sensor_data);
             } else if (train2DetectorPreviousHit == 0xfd || train1DetectorNextHit == 0xfd) {
                 if (train2DetectorNextHit != 0x7f) {
                     indexMissedSensors++;
@@ -951,7 +931,7 @@ void readMCPB() {
                 lastCommandSpeedTrain2 = 3;
                 lastCommandRepeatTrain2 = 3;
                 startOneTrain(secondTrain, 3, 3);
-                printf("INT1 (0x%x)\n", sensor_data);
+                //printf("INT1 (0x%x)\n", sensor_data);
             }
             break;
         default:
@@ -974,6 +954,46 @@ bool findMyTrain () {
     return false;
 }
 
+void init() { 
+    // Setup control box's switches
+    if (switch1){
+        on_off = 0;
+        RLED = 1;
+    }else{
+        on_off = 1;
+        on_off_mss = 1;
+        GLED = 1;
+    }
+    if (switch2){
+        night_mode = 0; 
+        YLEDdown = switch2;
+    }else{
+        night_mode = 1; 
+        YLEDup = 1;
+    }    
+    
+    // Clear current interrupts 
+    mcp->_read(GPIOA); 
+    mcp->_read(GPIOB); 
+    // Register callbacks 
+    int0.fall(&on_int0_change); 
+    int1.fall(&on_int1_change); 
+    sw1.fall(&on_sw1_down); 
+    sw2.fall(&on_sw2_down); 
+    sw1.rise(&on_sw1_up); 
+    sw2.rise(&on_sw2_up);     
+    bt1.fall(&on_bt1_down); 
+    bt2.fall(&on_bt2_down); 
+    bt1.rise(&on_bt1_up); 
+    bt2.rise(&on_bt2_up);         
+    // Enable interrupts on the MCP 
+    mcp->_write(GPINTENA, (unsigned char )0xff); 
+    mcp->_write(GPINTENB, (unsigned char )0xff); 
+    // Setting the switches
+    set_switches();
+    // Ready to go! 
+} 
+
 int main() {
     printLCD("Initializing system. \n");
     char buf[MAXIMUM_BUFFER_SIZE] = {0};
@@ -981,6 +1001,12 @@ int main() {
     init_mcp();
     initMcp1();
     init();
+
+    // wait_us(100000);
+    // send_command_switch(1,1);
+    // wait_us(100000);
+    // send_command_switch(1,2);
+    // wait_us(100000);
 
     turnOnSignal(0, 1);
     turnOnSignal(1, 1);
@@ -994,7 +1020,10 @@ int main() {
 
     while (true) {
         if (kill == 0 && on_off == 1) {
-
+            if (on_off_mss){
+                printLCD("trains ON");
+                on_off_mss = 0;
+            }
             // if (switchTrack) {
             //     //send_command_switch(3, false);
             //     switchTrack = false;
@@ -1050,6 +1079,7 @@ int main() {
                 secondTrainActive = true;
             }
             if (firstTrainActive == false && secondTrainActive == false) {
+                set_switches();
                 loopATrigger = 0;
                 loopBTrigger = 0;
                 indexMissedSensors = 0;
