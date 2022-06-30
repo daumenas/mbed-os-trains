@@ -1,0 +1,15 @@
+C:\Users\Dauma\Source\Repos\consoleDatingApp\PROJ\datingapp\UnitTestTrain\bin\Debug\Microsoft.VisualStudio.TestPlatform.MSTest.TestAdapter.dll
+C:\Users\Dauma\Source\Repos\consoleDatingApp\PROJ\datingapp\UnitTestTrain\bin\Debug\Microsoft.VisualStudio.TestPlatform.MSTestAdapter.PlatformServices.Interface.dll
+C:\Users\Dauma\Source\Repos\consoleDatingApp\PROJ\datingapp\UnitTestTrain\bin\Debug\Microsoft.VisualStudio.TestPlatform.MSTestAdapter.PlatformServices.dll
+C:\Users\Dauma\Source\Repos\consoleDatingApp\PROJ\datingapp\UnitTestTrain\bin\Debug\Microsoft.TestPlatform.AdapterUtilities.dll
+C:\Users\Dauma\Source\Repos\consoleDatingApp\PROJ\datingapp\UnitTestTrain\bin\Debug\UnitTestTrain.dll
+C:\Users\Dauma\Source\Repos\consoleDatingApp\PROJ\datingapp\UnitTestTrain\bin\Debug\UnitTestTrain.pdb
+C:\Users\Dauma\Source\Repos\consoleDatingApp\PROJ\datingapp\UnitTestTrain\bin\Debug\Microsoft.VisualStudio.TestPlatform.TestFramework.dll
+C:\Users\Dauma\Source\Repos\consoleDatingApp\PROJ\datingapp\UnitTestTrain\bin\Debug\Microsoft.VisualStudio.TestPlatform.TestFramework.Extensions.dll
+C:\Users\Dauma\Source\Repos\consoleDatingApp\PROJ\datingapp\UnitTestTrain\bin\Debug\Microsoft.VisualStudio.TestPlatform.TestFramework.xml
+C:\Users\Dauma\Source\Repos\consoleDatingApp\PROJ\datingapp\UnitTestTrain\bin\Debug\Microsoft.VisualStudio.TestPlatform.TestFramework.Extensions.xml
+C:\Users\Dauma\Source\Repos\consoleDatingApp\PROJ\datingapp\UnitTestTrain\obj\Debug\UnitTestTrain.csproj.AssemblyReference.cache
+C:\Users\Dauma\Source\Repos\consoleDatingApp\PROJ\datingapp\UnitTestTrain\obj\Debug\UnitTestTrain.csproj.CoreCompileInputs.cache
+C:\Users\Dauma\Source\Repos\consoleDatingApp\PROJ\datingapp\UnitTestTrain\obj\Debug\UnitTestTrain.csproj.CopyComplete
+C:\Users\Dauma\Source\Repos\consoleDatingApp\PROJ\datingapp\UnitTestTrain\obj\Debug\UnitTestTrain.dll
+C:\Users\Dauma\Source\Repos\consoleDatingApp\PROJ\datingapp\UnitTestTrain\obj\Debug\UnitTestTrain.pdb
